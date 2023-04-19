@@ -20,13 +20,13 @@ class Database:
         )
 
     async def execute(
-        self,
-        command,
-        *args,
-        fetch: bool = False,
-        fetchval: bool = False,
-        fetchrow: bool = False,
-        execute: bool = False,
+            self,
+            command,
+            *args,
+            fetch: bool = False,
+            fetchval: bool = False,
+            fetchrow: bool = False,
+            execute: bool = False,
     ):
         async with self.pool.acquire() as connection:
             connection: Connection
@@ -41,13 +41,37 @@ class Database:
                     result = await connection.execute(command, *args)
             return result
 
+    async def create_table_cats(self):
+        sql = """
+        CREATE TABLE IF NOT EXISTS cats (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL UNIQUE,
+        description varchar(255) NULL,
+        image_url VARCHAR(255) NOT NULL 
+        );
+        """
+        await self.execute(sql, execute=True)
+
     async def create_table_users(self):
         sql = """
         CREATE TABLE IF NOT EXISTS Users (
         id SERIAL PRIMARY KEY,
-        full_name VARCHAR(255) NOT NULL,
+        full_name VARCHAR(255) NOT NULL UNIQUE,
         username varchar(255) NULL,
-        telegram_id BIGINT NOT NULL UNIQUE
+        telegram_id BIGINT NOT NULL UNIQUE 
+        );
+        """
+        await self.execute(sql, execute=True)
+
+    async def create_table_praducts(self):
+        sql = """
+        CREATE TABLE IF NOT EXISTS praducts (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL UNIQUE,
+        description varchar(255) NOT NULL,
+        image_url VARCHAR(255) NOT NULL,
+        price NUMERIC NOT NULL,
+        cat_id INTEGER NOT NULL 
         );
         """
         await self.execute(sql, execute=True)
@@ -63,14 +87,36 @@ class Database:
         sql = "INSERT INTO users (full_name, username, telegram_id) VALUES($1, $2, $3) returning *"
         return await self.execute(sql, full_name, username, telegram_id, fetchrow=True)
 
+    async def add_cat(self, title, description, image_url):
+        sql = "INSERT INTO Cats ( title, description, image_url) VALUES($1, $2, $3) returning *"
+        return await self.execute(sql, title, description, image_url, fetchrow=True)
+
+    async def add_praduct(self, title, description, image_url, price, cat_id):
+        sql = "INSERT INTO Praducts ( title, description, image_url,price,cat_id) VALUES($1, $2, $3, $4, $5) returning *"
+        return await self.execute(sql, title, description, image_url, price, cat_id, fetchrow=True)
+
     async def select_all_users(self):
         sql = "SELECT * FROM Users"
+        return await self.execute(sql, fetch=True)
+
+    async def select_all_cats(self):
+        sql = "SELECT * FROM Cats"
         return await self.execute(sql, fetch=True)
 
     async def select_user(self, **kwargs):
         sql = "SELECT * FROM Users WHERE "
         sql, parameters = self.format_args(sql, parameters=kwargs)
         return await self.execute(sql, *parameters, fetchrow=True)
+
+    async def select_category(self, **kwargs):
+        sql = "SELECT * FROM Cats WHERE "
+        sql, parameters = self.format_args(sql, parameters=kwargs)
+        return await self.execute(sql, *parameters, fetchrow=True)
+
+    async def select_product(self, **kwargs):
+        sql = "SELECT * FROM Praducts WHERE "
+        sql, parameters = self.format_args(sql, parameters=kwargs)
+        return await self.execute(sql, *parameters, fetch=True)
 
     async def count_users(self):
         sql = "SELECT COUNT(*) FROM Users"
@@ -82,6 +128,9 @@ class Database:
 
     async def delete_users(self):
         await self.execute("DELETE FROM Users WHERE TRUE", execute=True)
+
+    async def delete_cats(self):
+        await self.execute("DELETE FROM Cats WHERE TRUE", execute=True)
 
     async def drop_users(self):
         await self.execute("DROP TABLE Users", execute=True)
